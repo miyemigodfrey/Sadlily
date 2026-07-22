@@ -1,26 +1,140 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Sky blue scale */
+  --sky-50: #f0f9ff;
+  --sky-100: #e0f2fe;
+  --sky-200: #bae6fd;
+  --sky-300: #7dd3fc;
+  --sky-400: #38bdf8;
+  --sky-500: #0ea5e9;
+  --sky-600: #0284c7;
+  --sky-700: #0369a1;
+
+  /* Nude / warm neutral scale */
+  --nude-50: #fbf7f3;
+  --nude-100: #f6ede4;
+  --nude-200: #eaddce;
+  --nude-300: #e7d3c4;
+  --nude-400: #d9bfae;
+  --nude-500: #c9a893;
+  --nude-600: #a98a76;
+  --nude-700: #8a7264;
+
+  /* Semantic tokens (light) */
+  --background: var(--nude-100);
+  --surface: #ffffff;
+  --surface-soft: var(--nude-50);
+  --foreground: #2c2320;
+  --muted: var(--nude-700);
+  --border: var(--nude-300);
+  --primary: var(--sky-500);
+  --primary-hover: var(--sky-600);
+  --on-primary: #ffffff;
+  --ring: var(--sky-300);
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-soft: var(--surface-soft);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-on-primary: var(--on-primary);
+  --color-ring: var(--ring);
+
+  --color-sky-50: var(--sky-50);
+  --color-sky-100: var(--sky-100);
+  --color-sky-200: var(--sky-200);
+  --color-sky-300: var(--sky-300);
+  --color-sky-400: var(--sky-400);
+  --color-sky-500: var(--sky-500);
+  --color-sky-600: var(--sky-600);
+  --color-sky-700: var(--sky-700);
+
+  --color-nude-50: var(--nude-50);
+  --color-nude-100: var(--nude-100);
+  --color-nude-200: var(--nude-200);
+  --color-nude-300: var(--nude-300);
+  --color-nude-400: var(--nude-400);
+  --color-nude-500: var(--nude-500);
+  --color-nude-600: var(--nude-600);
+  --color-nude-700: var(--nude-700);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-display);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #17141a;
+    --surface: #221d24;
+    --surface-soft: #1c181f;
+    --foreground: #efe7e0;
+    --muted: #b6a496;
+    --border: #362f38;
+    --primary: var(--sky-400);
+    --primary-hover: var(--sky-300);
+    --on-primary: #0b1220;
+    --ring: var(--sky-600);
   }
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(1100px 600px at 80% -10%, color-mix(in srgb, var(--sky-200) 55%, transparent), transparent 60%),
+    radial-gradient(900px 500px at 0% 0%, color-mix(in srgb, var(--nude-300) 45%, transparent), transparent 55%),
+    var(--background);
+  background-repeat: no-repeat;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background:
+      radial-gradient(1100px 600px at 80% -10%, color-mix(in srgb, var(--sky-700) 40%, transparent), transparent 60%),
+      radial-gradient(900px 500px at 0% 0%, color-mix(in srgb, #3a2f38 60%, transparent), transparent 55%),
+      var(--background);
+    background-repeat: no-repeat;
+  }
+}
+
+::selection {
+  background: color-mix(in srgb, var(--sky-300) 60%, transparent);
+}
+
+.font-display {
+  font-family: var(--font-display), Georgia, "Times New Roman", serif;
+}
+
+/* Custom range slider for the audio player */
+input[type="range"].slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--border);
+  cursor: pointer;
+}
+input[type="range"].slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: var(--primary);
+  border: 2px solid var(--surface);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+input[type="range"].slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--surface);
+  border-radius: 9999px;
+  background: var(--primary);
 }
