@@ -29,6 +29,10 @@ export const VOCALS: { value: VocalType; label: string }[] = [
   { value: "instrumental", label: "Instrumental" },
 ];
 
+/** Kie.ai Suno model versions. */
+export const MODELS = ["V5", "V4_5PLUS", "V4_5", "V4"] as const;
+export const DEFAULT_MODEL = "V5";
+
 export const DEFAULT_OPTIONS = {
   prompt: "",
   title: "",
@@ -37,4 +41,6 @@ export const DEFAULT_OPTIONS = {
   tempo: "Slow" as (typeof TEMPOS)[number],
   vocal: "female" as VocalType,
   instrumental: false,
+  mode: "simple" as "simple" | "custom",
+  lyrics: "",
 };

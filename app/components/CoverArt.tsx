@@ -1,13 +1,29 @@
 interface CoverArtProps {
   hue: number;
   title: string;
+  imageUrl?: string;
   size?: "sm" | "lg";
 }
 
-/** Deterministic gradient "album art" derived from the song's mood hue. */
-export default function CoverArt({ hue, title, size = "lg" }: CoverArtProps) {
+/**
+ * Album art: shows Suno's generated artwork when available, otherwise a
+ * deterministic gradient derived from the song's mood hue.
+ */
+export default function CoverArt({ hue, title, imageUrl, size = "lg" }: CoverArtProps) {
   const dimension = size === "lg" ? "h-full w-full" : "h-14 w-14";
   const initial = title.trim().charAt(0).toUpperCase() || "♪";
+
+  if (imageUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={imageUrl}
+        alt={`Cover art for ${title}`}
+        className={`${dimension} rounded-2xl object-cover`}
+      />
+    );
+  }
+
   return (
     <div
       className={`${dimension} relative flex items-center justify-center overflow-hidden rounded-2xl`}

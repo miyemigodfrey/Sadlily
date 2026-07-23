@@ -1,6 +1,14 @@
 "use client";
 
-export default function GeneratingOverlay() {
+interface GeneratingOverlayProps {
+  label?: string;
+  sublabel?: string;
+}
+
+export default function GeneratingOverlay({
+  label = "Composing your sad song…",
+  sublabel = "tuning the melancholy just right",
+}: GeneratingOverlayProps) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
       <div className="flex items-end gap-1.5" aria-hidden>
@@ -15,10 +23,8 @@ export default function GeneratingOverlay() {
           />
         ))}
       </div>
-      <p className="mt-6 font-display text-xl text-foreground">
-        Composing your sad song…
-      </p>
-      <p className="mt-1 text-sm text-muted">tuning the melancholy just right</p>
+      <p className="mt-6 font-display text-xl text-foreground">{label}</p>
+      <p className="mt-1 text-sm text-muted">{sublabel}</p>
 
       <style>{`
         @keyframes sadlily-bar {

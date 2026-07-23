@@ -10,14 +10,14 @@ export default function Home() {
           AI sad-song studio
         </span>
         <h1 className="mt-5 font-display text-5xl font-semibold leading-tight tracking-tight text-foreground sm:text-6xl">
-          Turn a feeling into
+          Let´s make you even
           <br />
           <span className="bg-gradient-to-r from-sky-500 to-nude-600 bg-clip-text text-transparent">
-            a sad song.
+            more sad.
           </span>
         </h1>
         <p className="mx-auto mt-4 max-w-md text-base text-muted">
-          Describe the ache, pick a mood, and let Sadlily compose something to cry to.
+          Describe the ache, pick a mood, and let Sadlily compose something to cry and whine to.
         </p>
       </section>
 

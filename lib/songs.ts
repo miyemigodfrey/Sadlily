@@ -1,4 +1,4 @@
-import type { Song } from "./types";
+import type { Song, Track } from "./types";
 
 const KEY = "sadlily.songs";
 const EMPTY: Song[] = [];
@@ -8,15 +8,45 @@ let cache: Song[] | null = null;
 const listeners = new Set<() => void>();
 let storageBound = false;
 
+/** Legacy songs (pre-variants schema) stored audio/lyrics on the song itself. */
+type LegacySong = Song & {
+  audioUrl?: string;
+  lyrics?: string;
+  durationLabel?: string;
+};
+
+/** Upgrades an old-schema song to the current `variants` shape. */
+function normalize(s: LegacySong): Song {
+  if (Array.isArray(s.variants)) return s;
+  const variants: Track[] = s.audioUrl
+    ? [
+        {
+          id: s.id,
+          audioUrl: s.audioUrl,
+          title: s.title,
+          lyrics: s.lyrics ?? "",
+        },
+      ]
+    : [];
+  return {
+    ...s,
+    variants,
+    activeVariant: 0,
+    status: variants.length ? "complete" : "failed",
+    mode: s.mode ?? "simple",
+  };
+}
+
 function readRaw(): Song[] {
   if (typeof window === "undefined") return EMPTY;
   try {
     const raw = window.localStorage.getItem(KEY);
     if (!raw) return EMPTY;
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed)
-      ? [...(parsed as Song[])].sort((a, b) => b.createdAt - a.createdAt)
-      : EMPTY;
+    if (!Array.isArray(parsed)) return EMPTY;
+    return (parsed as LegacySong[])
+      .map(normalize)
+      .sort((a, b) => b.createdAt - a.createdAt);
   } catch {
     return EMPTY;
   }

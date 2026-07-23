@@ -4,16 +4,24 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import ChipSelect from "./ChipSelect";
 import GeneratingOverlay from "./GeneratingOverlay";
-import { GENRES, MOODS, TEMPOS, VOCALS, DEFAULT_OPTIONS } from "@/lib/options";
-import type { VocalType } from "@/lib/types";
-import { generateSong } from "@/lib/generate";
+import { GENRES, MOODS, TEMPOS, VOCALS, DEFAULT_OPTIONS, DEFAULT_MODEL } from "@/lib/options";
+import type { GenerationMode, GenerationOptions, Song, VocalType } from "@/lib/types";
+import { startGeneration, inventTitle, hueFor } from "@/lib/generate";
+import { startLyrics, fetchLyricsStatus, type LyricsOption } from "@/lib/lyrics";
 import { saveSong } from "@/lib/songs";
+
+type LyricsGen =
+  | { state: "idle" }
+  | { state: "working" }
+  | { state: "choosing"; options: LyricsOption[] }
+  | { state: "error"; msg: string };
 
 const EXAMPLE_PROMPTS = [
   "a rainy goodbye at a train station",
   "missing someone who moved on",
   "the empty side of the bed",
   "growing apart from an old friend",
+  "a bad breakup",
 ];
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -34,35 +42,125 @@ export default function PromptForm() {
   const [tempo, setTempo] = useState<string>(DEFAULT_OPTIONS.tempo);
   const [vocal, setVocal] = useState<VocalType>(DEFAULT_OPTIONS.vocal);
   const [instrumental, setInstrumental] = useState(DEFAULT_OPTIONS.instrumental);
+  const [mode, setMode] = useState<GenerationMode>(DEFAULT_OPTIONS.mode);
+  const [lyrics, setLyrics] = useState(DEFAULT_OPTIONS.lyrics);
   const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lyricsGen, setLyricsGen] = useState<LyricsGen>({ state: "idle" });
 
-  const canGenerate = prompt.trim().length > 0 && !generating;
+  const needsLyrics = mode === "custom" && !instrumental;
+
+  async function generateLyrics() {
+    const seed = prompt.trim();
+    if (!seed || lyricsGen.state === "working") return;
+    setLyricsGen({ state: "working" });
+    try {
+      const taskId = await startLyrics(seed);
+      const startedAt = Date.now();
+      for (;;) {
+        await new Promise((r) => setTimeout(r, 3000));
+        if (Date.now() - startedAt > 90000) {
+          setLyricsGen({ state: "error", msg: "Timed out — please try again." });
+          return;
+        }
+        const result = await fetchLyricsStatus(taskId);
+        if (result.failed) {
+          setLyricsGen({
+            state: "error",
+            msg: result.errorMessage || "Lyrics generation failed.",
+          });
+          return;
+        }
+        if (result.done && result.options.length) {
+          setLyricsGen({ state: "choosing", options: result.options });
+          return;
+        }
+      }
+    } catch (e) {
+      setLyricsGen({
+        state: "error",
+        msg: e instanceof Error ? e.message : "Something went wrong.",
+      });
+    }
+  }
+
+  function applyLyricsOption(option: LyricsOption) {
+    setLyrics(option.text);
+    if (!title.trim()) setTitle(option.title);
+    setLyricsGen({ state: "idle" });
+  }
+  const canGenerate =
+    prompt.trim().length > 0 &&
+    (!needsLyrics || lyrics.trim().length > 0) &&
+    !generating;
 
   async function handleGenerate() {
     if (!canGenerate) return;
     setGenerating(true);
+    setError(null);
+
+    const opts: GenerationOptions = {
+      prompt,
+      title,
+      genres,
+      mood,
+      tempo,
+      vocal: instrumental ? "instrumental" : vocal,
+      instrumental,
+      mode,
+      lyrics: mode === "custom" ? lyrics : undefined,
+      model: DEFAULT_MODEL,
+    };
+
     try {
-      const song = await generateSong({
-        prompt,
-        title,
-        genres,
-        mood,
-        tempo,
-        vocal: instrumental ? "instrumental" : vocal,
-        instrumental,
-      });
+      const taskId = await startGeneration(opts);
+      const song: Song = {
+        ...opts,
+        id: Math.random().toString(36).slice(2, 10),
+        taskId,
+        status: "pending",
+        title: inventTitle(opts),
+        variants: [],
+        activeVariant: 0,
+        coverHue: hueFor(mood),
+        createdAt: Date.now(),
+      };
       saveSong(song);
       router.push(`/song/${song.id}`);
-    } catch {
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong.");
       setGenerating(false);
     }
   }
 
   return (
     <>
-      {generating && <GeneratingOverlay />}
+      {generating && <GeneratingOverlay label="Sending your request…" />}
       <div className="rounded-3xl border border-border bg-surface/80 p-6 shadow-lg shadow-nude-300/20 backdrop-blur-sm sm:p-8">
         <div className="flex flex-col gap-6">
+          {/* Mode toggle */}
+          <div className="flex rounded-2xl border border-border bg-surface-soft p-1 text-sm font-medium">
+            {(
+              [
+                ["simple", "Describe a feeling"],
+                ["custom", "Write my own lyrics"],
+              ] as [GenerationMode, string][]
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setMode(value)}
+                className={`flex-1 rounded-xl px-3 py-2 transition-colors ${
+                  mode === value
+                    ? "bg-primary text-on-primary shadow-sm"
+                    : "text-muted hover:text-foreground"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           <Field label="What's the song about?">
             <textarea
               value={prompt}
@@ -84,6 +182,70 @@ export default function PromptForm() {
               ))}
             </div>
           </Field>
+
+          {needsLyrics && (
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <label className="text-sm font-semibold text-foreground">Lyrics</label>
+                <button
+                  type="button"
+                  onClick={generateLyrics}
+                  disabled={lyricsGen.state === "working" || !prompt.trim()}
+                  className="flex items-center gap-1.5 rounded-full border border-primary/40 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 transition-colors hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {lyricsGen.state === "working" ? (
+                    <>
+                      <span className="h-3 w-3 animate-spin rounded-full border-2 border-sky-400 border-t-transparent" />
+                      Writing…
+                    </>
+                  ) : (
+                    <>✨ Write lyrics for me</>
+                  )}
+                </button>
+              </div>
+
+              <textarea
+                value={lyrics}
+                onChange={(e) => setLyrics(e.target.value)}
+                rows={8}
+                placeholder={"[Verse 1]\nWrite the words you want sung…\n\n[Chorus]\n…"}
+                className="w-full resize-y rounded-2xl border border-border bg-surface-soft p-4 font-mono text-sm leading-relaxed text-foreground outline-none placeholder:text-muted/70 focus:border-primary focus:ring-2 focus:ring-ring/40"
+              />
+
+              {lyricsGen.state === "error" && (
+                <p className="text-xs text-red-600">{lyricsGen.msg}</p>
+              )}
+
+              {lyricsGen.state === "choosing" && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs font-medium text-muted">
+                    Pick a draft to drop into the editor:
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {lyricsGen.options.map((option, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => applyLyricsOption(option)}
+                        className="rounded-xl border border-border bg-surface p-3 text-left transition-colors hover:border-primary/50 hover:bg-surface-soft"
+                      >
+                        <span className="block font-display text-sm font-semibold text-foreground">
+                          {option.title}
+                        </span>
+                        <span className="mt-1 block whitespace-pre-line text-xs leading-relaxed text-muted">
+                          {option.text.slice(0, 150).trim()}…
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs text-muted">
+                These exact words will be sung. Use [Verse], [Chorus] tags to shape the song.
+              </p>
+            </div>
+          )}
 
           <Field label="Song title (optional)">
             <input
@@ -142,6 +304,12 @@ export default function PromptForm() {
               <span className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
             </span>
           </label>
+
+          {error && (
+            <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+              {error}
+            </p>
+          )}
 
           <button
             type="button"
